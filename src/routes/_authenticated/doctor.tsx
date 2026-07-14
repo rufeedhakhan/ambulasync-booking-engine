@@ -28,17 +28,28 @@ export const Route = createFileRoute("/_authenticated/doctor")({
   component: DoctorConsole,
 });
 
+type Doctor = {
+  full_name: string;
+  specialty: string;
+  bio: string | null;
+  years_experience: number;
+  consultation_fee: number;
+  city: string | null;
+};
+
+type Appt = {
+  id: string;
+  patient_name: string;
+  patient_phone: string | null;
+  reason: string | null;
+  notes: string | null;
+  ai_summary: string | null;
+  status: string;
+  appointment_slots: { start_time: string } | null;
+};
+
 function DoctorConsole() {
   const qc = useQueryClient();
-  const upsert = useServerFn(upsertMyDoctorProfile);
-  const makeSlots = useServerFn(createSlots);
-  const summarize = useServerFn(summarizeNote);
-  const mockGen = useServerFn(generateMockPatients);
-
-  const [uid, setUid] = useState<string | null>(null);
-  useState(() => {
-    supabase.auth.getUser().then(({ data }) => setUid(data.user?.id ?? null));
-  });
 
   const { data: myDoctor, isLoading } = useQuery({
     queryKey: ["me-doctor"],
@@ -46,7 +57,7 @@ function DoctorConsole() {
       const { data: sess } = await supabase.auth.getUser();
       if (!sess.user) return null;
       const { data } = await supabase.from("doctors").select("*").eq("id", sess.user.id).maybeSingle();
-      return data;
+      return data as Doctor | null;
     },
   });
 
@@ -59,13 +70,13 @@ function DoctorConsole() {
         .select("*, appointment_slots(start_time)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as Appt[];
     },
   });
 
   if (isLoading) return <Shell>Loading…</Shell>;
 
-  if (!myDoctor) return <OnboardDoctor onSaved={() => qc.invalidateQueries()} upsert={upsert} />;
+  if (!myDoctor) return <OnboardDoctor onSaved={() => qc.invalidateQueries()} />;
 
   return (
     <Shell>
@@ -84,15 +95,15 @@ function DoctorConsole() {
         </TabsList>
 
         <TabsContent value="appts" className="mt-6">
-          <ApptsPanel appts={appts} summarize={summarize} mockGen={mockGen} />
+          <ApptsPanel appts={appts} />
         </TabsContent>
 
         <TabsContent value="slots" className="mt-6">
-          <SlotsPanel makeSlots={makeSlots} onCreated={() => qc.invalidateQueries()} />
+          <SlotsPanel onCreated={() => qc.invalidateQueries()} />
         </TabsContent>
 
         <TabsContent value="profile" className="mt-6">
-          <ProfilePanel doctor={myDoctor} upsert={upsert} onSaved={() => qc.invalidateQueries()} />
+          <ProfilePanel doctor={myDoctor} onSaved={() => qc.invalidateQueries()} />
         </TabsContent>
       </Tabs>
     </Shell>
@@ -108,13 +119,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function OnboardDoctor({
-  onSaved,
-  upsert,
-}: {
-  onSaved: () => void;
-  upsert: ReturnType<typeof useServerFn<typeof upsertMyDoctorProfile>>;
-}) {
+function OnboardDoctor({ onSaved }: { onSaved: () => void }) {
+  const upsert = useServerFn(upsertMyDoctorProfile);
   return (
     <Shell>
       <Card className="mx-auto max-w-2xl shadow-card">
@@ -142,22 +148,8 @@ function OnboardDoctor({
   );
 }
 
-function ProfilePanel({
-  doctor,
-  upsert,
-  onSaved,
-}: {
-  doctor: {
-    full_name: string;
-    specialty: string;
-    bio: string | null;
-    years_experience: number;
-    consultation_fee: number;
-    city: string | null;
-  };
-  upsert: ReturnType<typeof useServerFn<typeof upsertMyDoctorProfile>>;
-  onSaved: () => void;
-}) {
+function ProfilePanel({ doctor, onSaved }: { doctor: Doctor; onSaved: () => void }) {
+  const upsert = useServerFn(upsertMyDoctorProfile);
   return (
     <Card>
       <CardHeader>
@@ -185,14 +177,7 @@ function DoctorForm({
   initial,
   onSubmit,
 }: {
-  initial: {
-    full_name: string;
-    specialty: string;
-    bio: string | null;
-    years_experience: number;
-    consultation_fee: number;
-    city: string | null;
-  } | null;
+  initial: Doctor | null;
   onSubmit: (v: {
     full_name: string;
     specialty: string;
@@ -219,10 +204,10 @@ function DoctorForm({
         await onSubmit({
           full_name: name,
           specialty,
-          bio,
+          bio: bio ?? "",
           years_experience: Number(yrs),
           consultation_fee: Number(fee),
-          city,
+          city: city ?? "",
         });
         setBusy(false);
       }}
@@ -246,11 +231,11 @@ function DoctorForm({
         </div>
         <div className="sm:col-span-2">
           <Label>City</Label>
-          <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Bengaluru" />
+          <Input value={city ?? ""} onChange={(e) => setCity(e.target.value)} placeholder="Bengaluru" />
         </div>
         <div className="sm:col-span-2">
           <Label>Bio</Label>
-          <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} />
+          <Textarea value={bio ?? ""} onChange={(e) => setBio(e.target.value)} rows={4} />
         </div>
       </div>
       <Button type="submit" className="bg-brand-gradient shadow-glow" disabled={busy}>
@@ -260,13 +245,8 @@ function DoctorForm({
   );
 }
 
-function SlotsPanel({
-  makeSlots,
-  onCreated,
-}: {
-  makeSlots: ReturnType<typeof useServerFn<typeof createSlots>>;
-  onCreated: () => void;
-}) {
+function SlotsPanel({ onCreated }: { onCreated: () => void }) {
+  const makeSlots = useServerFn(createSlots);
   const [date, setDate] = useState(new Date(Date.now() + 86400000).toISOString().slice(0, 10));
   const [startH, setStartH] = useState(9);
   const [endH, setEndH] = useState(17);
@@ -326,32 +306,15 @@ function SlotsPanel({
   );
 }
 
-type Appt = {
-  id: string;
-  patient_name: string;
-  patient_phone: string | null;
-  reason: string | null;
-  notes: string | null;
-  ai_summary: string | null;
-  status: string;
-  appointment_slots: { start_time: string } | null;
-};
-
-function ApptsPanel({
-  appts,
-  summarize,
-  mockGen,
-}: {
-  appts: Appt[];
-  summarize: ReturnType<typeof useServerFn<typeof summarizeNote>>;
-  mockGen: ReturnType<typeof useServerFn<typeof generateMockPatients>>;
-}) {
+function ApptsPanel({ appts }: { appts: Appt[] }) {
+  const summarize = useServerFn(summarizeNote);
+  const mockGen = useServerFn(generateMockPatients);
+  const qc = useQueryClient();
   const [selected, setSelected] = useState<Appt | null>(null);
   const [rawNote, setRawNote] = useState("");
   const [aiOut, setAiOut] = useState("");
   const [busy, setBusy] = useState(false);
   const [mockBusy, setMockBusy] = useState(false);
-  const qc = useQueryClient();
 
   async function doSummarize() {
     if (!selected) return;
