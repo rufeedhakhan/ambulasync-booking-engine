@@ -63,20 +63,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "AmbulaSync – Zero-collision clinic scheduling" },
+      { title: "AmbulaSync – Book a doctor in under 2 minutes" },
       {
         name: "description",
         content:
-          "AmbulaSync replaces paper registers with a high-concurrency clinical scheduling engine. Book doctor appointments in under 2 minutes, backed by atomic Postgres transactions that guarantee zero double-bookings.",
+          "Search verified doctors, pick a slot, and confirm your appointment. Zero double-bookings, ever, thanks to atomic database transactions.",
       },
-      { property: "og:title", content: "AmbulaSync – Zero-collision clinic scheduling" },
+      { property: "og:title", content: "AmbulaSync – Book a doctor in under 2 minutes" },
       {
         property: "og:description",
         content:
-          "Production-grade clinical operations platform. Atomic booking, doctor dashboard, AI note summarizer.",
+          "Search verified doctors, pick a slot, and confirm your appointment. Zero double-bookings, ever, thanks to atomic database transactions.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "AmbulaSync – Book a doctor in under 2 minutes" },
+      { name: "twitter:description", content: "Search verified doctors, pick a slot, and confirm your appointment. Zero double-bookings, ever, thanks to atomic database transactions." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/47c5569a-03ea-431a-8956-a677d14053ee" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/47c5569a-03ea-431a-8956-a677d14053ee" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
